@@ -16,12 +16,16 @@ const url =
 let gobindAddress = '0xEcA19B1a87442b0c25801B809bf567A6ca87B1da';
 gobindAddress = gobindAddress.toLowerCase();
 
+const checkedWallet = [];
+checkedWallet.push(gobindAddress);
+
 const tracking = async (address, result) => {
 	const url = `https://api-ropsten.etherscan.io/api?module=account&action=tokentx&address=${address}&startblock=0&endblock=999999999&sort=asc&apikey=K7ST5DC6VP2Z5ZVWWD1IB3JDB5AHIEV274`;
 	const response = await get(url);
 	const data = response.data;
 	const transactions = data.result;
 	const filtered = [];
+	checkedWallet.push(address);
 	for (const t of transactions) {
 		if (t.from === address && t.tokenSymbol === 'BKTC') filtered.push(t);
 		if (t.to === address && t.tokenSymbol === 'BKTC')
@@ -36,7 +40,8 @@ const tracking = async (address, result) => {
 			Amount: t.value / Math.pow(10, 18)
 		});
 		const walletAddress = t.to;
-		newWallet.push(walletAddress);
+		if (!checkedWallet.includes(walletAddress))
+			newWallet.push(walletAddress);
 		if (!result['balances'][walletAddress]) {
 			result['balances'][address] -= t.value / Math.pow(10, 18);
 			result['balances'][walletAddress] = t.value / Math.pow(10, 18);
@@ -45,7 +50,7 @@ const tracking = async (address, result) => {
 			result['balances'][walletAddress] += t.value / Math.pow(10, 18);
 		}
 	});
-	console.log(newWallet);
+	// console.log(newWallet);
 	for (const t of newWallet) await tracking(t, result);
 };
 
@@ -74,16 +79,20 @@ const main = async () => {
 		});
 		const walletAddress = t.to;
 		if (!result['balances'][walletAddress]) {
+			result['balances'][gobindAddress] -= t.value / Math.pow(10, 18);
 			result['balances'][walletAddress] = t.value / Math.pow(10, 18);
 		} else {
+			result['balances'][gobindAddress] -= t.value / Math.pow(10, 18);
 			result['balances'][walletAddress] += t.value / Math.pow(10, 18);
 		}
 	});
+	// console.log(result);
 	for (const t of result['transactions']) {
 		const toAddress = t.to;
 		await tracking(toAddress, result);
 	}
 	console.log(result);
+	// console.log(checkedWallet);
 };
 
 main();
